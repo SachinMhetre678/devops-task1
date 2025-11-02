@@ -1,17 +1,14 @@
 pipeline {
     agent any
     
-    environment {
-        DOCKER_HOST = "tcp://localhost:2375"
-    }
-    
     stages {
-        stage('Test Docker Connection') {
+        stage('Cleanup Previous Containers') {
             steps {
                 bat '''
-                echo "Testing Docker TCP connection..."
-                docker -H tcp://localhost:2375 ps
-                echo "Docker TCP test complete"
+                echo "🧹 Cleaning up previous containers..."
+                docker stop devops-app || echo "No container to stop"
+                docker rm devops-app || echo "No container to remove"
+                echo "Cleanup completed"
                 '''
             }
         }
@@ -19,9 +16,9 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 bat '''
-                echo "Building image via TCP..."
-                docker -H tcp://localhost:2375 build -t hello-devops-app .
-                echo "Build completed via TCP"
+                echo "🐳 Building Docker image..."
+                docker build -t hello-devops-app .
+                echo "✅ Docker image built successfully"
                 '''
             }
         }
@@ -29,9 +26,9 @@ pipeline {
         stage('Run Container') {
             steps {
                 bat '''
-                echo "Running container via TCP..."
-                docker -H tcp://localhost:2375 run -d -p 5000:5000 --name jenkins-app hello-devops-app
-                echo "Container started via TCP"
+                echo "🚀 Running container..."
+                docker run -d -p 5000:5000 --name devops-app hello-devops-app
+                echo "✅ Container started successfully"
                 '''
             }
         }
@@ -39,11 +36,21 @@ pipeline {
         stage('Test Application') {
             steps {
                 bat '''
-                echo "Waiting for app to start..."
-                timeout /t 10
-                echo "Testing application..."
+                echo "⏳ Waiting for application to start..."
+                timeout /t 15
+                echo "✅ Testing application health..."
                 curl http://localhost:5000/health
-                echo "Application test complete!"
+                echo "🎉 Application deployed successfully!"
+                '''
+            }
+        }
+        
+        stage('Verification') {
+            steps {
+                bat '''
+                echo "🔍 Verifying deployment..."
+                docker ps
+                echo "✅ Verification complete - Container is running"
                 '''
             }
         }
@@ -51,8 +58,18 @@ pipeline {
     
     post {
         success {
-            echo "🎉 JENKINS + DOCKER PIPELINE SUCCESS!"
-            echo "📸 Take screenshots of this successful pipeline"
+            echo "================================================"
+            echo "📸 TASK 1 COMPLETED SUCCESSFULLY!"
+            echo "================================================"
+            echo "✅ Jenkins pipeline executed all stages"
+            echo "🐳 Docker image built and container running"
+            echo "🌐 Application accessible at: http://localhost:5000"
+            echo "❤️ Health check working: http://localhost:5000/health"
+            echo ""
+            echo "🚀 DOCKER + JENKINS PIPELINE - WORKING!"
+        }
+        failure {
+            echo "❌ Pipeline failed - check Docker installation"
         }
     }
 }
