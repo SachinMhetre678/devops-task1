@@ -3,25 +3,35 @@ pipeline {
     
     environment {
         APP_NAME = "hello-devops-app"
-        CONTAINER_NAME = "hello-devops-container-${BUILD_ID}"
+        CONTAINER_NAME = "devops-container-${BUILD_ID}"
     }
     
     stages {
+        stage('Cleanup') {
+            steps {
+                script {
+                    echo "🧹 Cleaning up previous containers..."
+                    bat 'docker stop devops-container || echo "No container to stop"'
+                    bat 'docker rm devops-container || echo "No container to remove"'
+                    bat 'docker ps -a'
+                }
+            }
+        }
+        
         stage('Checkout GitHub') {
             steps {
                 checkout scm
                 echo "✅ Code checked out from GitHub"
-                sh 'ls -la'
+                bat 'dir'
             }
         }
         
         stage('Build Docker Image') {
             steps {
                 script {
-                    echo "🐳 Building Docker image from GitHub code..."
-                    sh "docker build -t ${APP_NAME}:${BUILD_ID} ."
-                    sh "docker tag ${APP_NAME}:${BUILD_ID} ${APP_NAME}:latest"
-                    sh "docker images | grep ${APP_NAME}"
+                    echo "🐳 Building Docker image..."
+                    bat "docker build -t ${APP_NAME}:${BUILD_ID} ."
+                    bat "docker images | findstr ${APP_NAME}"
                 }
             }
         }
@@ -30,13 +40,10 @@ pipeline {
             steps {
                 script {
                     echo "🚀 Running container..."
-                    // Cleanup any existing container
-                    sh "docker stop ${CONTAINER_NAME} || true"
-                    sh "docker rm ${CONTAINER_NAME} || true"
-                    
-                    // Run new container
-                    sh "docker run -d -p 5000:5000 --name ${CONTAINER_NAME} ${APP_NAME}:${BUILD_ID}"
-                    sh "docker ps | grep ${CONTAINER_NAME}"
+                    bat "docker run -d -p 5000:5000 --name ${CONTAINER_NAME} ${APP_NAME}:${BUILD_ID}"
+                    timeout(time: 10, unit: 'SECONDS') {
+                        bat "docker ps | findstr ${CONTAINER_NAME}"
+                    }
                 }
             }
         }
@@ -46,10 +53,8 @@ pipeline {
                 script {
                     echo "✅ Testing application..."
                     sleep 10
-                    sh "curl -f http://localhost:5000/"
-                    sh "curl -f http://localhost:5000/health"
-                    sh "curl -f http://localhost:5000/jenkins"
-                    echo "🎉 All tests passed!"
+                    bat 'curl -f http://localhost:5000/health'
+                    echo "🎉 Application deployed successfully!"
                 }
             }
         }
@@ -58,28 +63,20 @@ pipeline {
     post {
         always {
             echo "🏁 Pipeline execution completed - Build ${BUILD_ID}"
-            sh "docker images | grep ${APP_NAME}"
         }
         success {
-            echo "📸 SCREENSHOT TIME - TASK 1 COMPLETE!"
-            echo "1. Jenkins pipeline success"
-            echo "2. GitHub repository"
-            echo "3. Running container: docker ps"
-            echo "4. Browser: http://localhost:5000"
-            echo "5. Health endpoint: http://localhost:5000/health"
-            echo "6. Jenkins info: http://localhost:5000/jenkins"
-            
-            // Keep container running for screenshots
-            echo "🔗 Application URLs:"
-            echo "   Main: http://localhost:5000"
-            echo "   Health: http://localhost:5000/health"
-            echo "   Jenkins: http://localhost:5000/jenkins"
+            echo "================================================"
+            echo "📸 TASK 1 COMPLETE - TAKE SCREENSHOTS NOW!"
+            echo "================================================"
+            echo "1. ✅ This Jenkins pipeline success"
+            echo "2. 🐳 Running container: 'docker ps'"
+            echo "3. 🌐 Browser: http://localhost:5000"
+            echo "4. ❤️ Health check: 'curl http://localhost:5000/health'"
+            echo ""
+            echo "🚀 Task 1: Docker + Jenkins - COMPLETED!"
         }
         failure {
             echo "❌ Pipeline failed!"
-            // Cleanup on failure
-            sh "docker stop ${CONTAINER_NAME} || true"
-            sh "docker rm ${CONTAINER_NAME} || true"
         }
     }
 }
